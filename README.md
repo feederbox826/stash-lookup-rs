@@ -1,6 +1,7 @@
 # stash-lookup-rs
 
-forward and reverse lookup for stashids
+forward and reverse caching lookup for stashids
+it does not proactively hit stashdb, but any entries already pulled will return from local cache instad of across the network
 
 ## api:
 ```
