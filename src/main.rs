@@ -31,8 +31,8 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/health", axum::routing::get(routes::health))
-        .route("/api/lookup/:type/:name", axum::routing::get(routes::lookup_by_type))
-        .route("/api/id/:type/:id", axum::routing::get(routes::lookup_by_id))
+        .route("/api/lookup/{type}/{name}", axum::routing::get(routes::lookup_by_type))
+        .route("/api/id/{type}/{id}", axum::routing::get(routes::lookup_by_id))
         .with_state(AppState { pool, stash });
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3053));
