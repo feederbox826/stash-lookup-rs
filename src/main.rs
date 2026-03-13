@@ -35,7 +35,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/id/{type}/{id}", axum::routing::get(routes::lookup_by_id))
         .with_state(AppState { pool, stash });
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3053));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3053));
     println!("Listening on http://{}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app)
