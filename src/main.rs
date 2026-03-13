@@ -18,7 +18,7 @@ async fn shutdown_signal() {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:lookup.db?mode=rwc".to_string());
+    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:data/lookup.db?mode=rwc".to_string());
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
         .connect(&database_url)
