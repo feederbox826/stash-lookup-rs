@@ -9,6 +9,7 @@ use axum::Router;
 use routes::AppState;
 use sqlx::sqlite::SqlitePoolOptions;
 use std::net::SocketAddr;
+use tower_http::cors::{Any, CorsLayer};
 
 async fn shutdown_signal() {
     tokio::signal::ctrl_c()
@@ -33,7 +34,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", axum::routing::get(routes::health))
         .route("/api/lookup/{type}/{name}", axum::routing::get(routes::lookup_by_type))
         .route("/api/id/{type}/{id}", axum::routing::get(routes::lookup_by_id))
-        .with_state(AppState { pool, stash });
+        .with_state(AppState { pool, stash })
+        .layer(CorsLayer::new().allow_origin(Any));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3053));
     println!("Listening on http://{}", addr);
