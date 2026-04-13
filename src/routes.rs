@@ -1,9 +1,10 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
 };
+use serde::Deserialize;
 use sqlx::SqlitePool;
 
 use crate::db;
@@ -22,6 +23,12 @@ pub async fn health() -> &'static str {
 pub struct AppState {
     pub pool: SqlitePool,
     pub stash: StashClient,
+}
+
+#[derive(Deserialize)]
+pub struct LookupByIdParams {
+    #[serde(default)]
+    skip_cache: bool,
 }
 
 fn error_response(status: StatusCode, message: &str) -> axum::response::Response {
@@ -56,19 +63,21 @@ pub async fn lookup_by_type(
 pub async fn lookup_by_id(
     State(state): State<AppState>,
     Path((entity_type, id)): Path<(String, String)>,
+    Query(params): Query<LookupByIdParams>,
 ) -> axum::response::Response {
     if Uuid::parse_str(&id).is_err() {
         return error_response(StatusCode::BAD_REQUEST, "Invalid UUID format");
     }
 
+    let skip_cache = params.skip_cache;
     let result = match entity_type.to_lowercase().as_str() {
-        "tags" => lookup::tag_by_id(&state.pool, &state.stash, &id)
+        "tags" => lookup::tag_by_id(&state.pool, &state.stash, &id, skip_cache)
             .await
             .map(|t| LookupResponse::Tags(vec![t])),
-        "studios" => lookup::studio_by_id(&state.pool, &state.stash, &id)
+        "studios" => lookup::studio_by_id(&state.pool, &state.stash, &id, skip_cache)
             .await
             .map(|s| LookupResponse::Studios(vec![s])),
-        "performers" => lookup::performer_by_id(&state.pool, &state.stash, &id)
+        "performers" => lookup::performer_by_id(&state.pool, &state.stash, &id, skip_cache)
             .await
             .map(|p| LookupResponse::Performers(vec![p])),
         _ => return error_response(StatusCode::BAD_REQUEST, "Invalid entity type. Use: tags, studios, performers"),
