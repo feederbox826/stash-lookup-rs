@@ -20,7 +20,12 @@ fn placeholders(n: usize) -> String {
 }
 
 fn normalize_search(s: &str) -> Option<String> {
-    let n = s.trim().to_lowercase();
+    let n = s
+        .trim()
+        .to_lowercase()
+        .replace("%20", " ")
+        .replace('+', " ")
+        .replace('_', " ");
     if n.is_empty() { None } else { Some(n) }
 }
 
