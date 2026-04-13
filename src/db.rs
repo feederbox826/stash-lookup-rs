@@ -24,7 +24,6 @@ fn normalize_search(s: &str) -> Option<String> {
         .trim()
         .to_lowercase()
         .replace("%20", " ")
-        .replace('+', " ")
         .replace('_', " ");
     if n.is_empty() { None } else { Some(n) }
 }
