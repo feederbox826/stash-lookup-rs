@@ -28,7 +28,14 @@ pub async fn studio_by_id(
         return Ok(s);
     }
     let fetched = fetch::get_studio(client, id).await?;
-    db::add_studio(pool, &fetched.uuid, &fetched.name, &fetched.aliases, fetched.parent).await?;
+    db::add_studio(
+        pool,
+        &fetched.uuid,
+        &fetched.name,
+        &fetched.aliases,
+        fetched.parent,
+    )
+    .await?;
     Ok(fetched)
 }
 
@@ -42,6 +49,13 @@ pub async fn tag_by_id(
         return Ok(t);
     }
     let fetched = fetch::get_tag(client, id).await?;
-    db::add_tag(pool, &fetched.uuid, &fetched.name, &fetched.aliases, fetched.category).await?;
+    db::add_tag(
+        pool,
+        &fetched.uuid,
+        &fetched.name,
+        &fetched.aliases,
+        fetched.category,
+    )
+    .await?;
     Ok(fetched)
 }

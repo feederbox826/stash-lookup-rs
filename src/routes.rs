@@ -1,8 +1,8 @@
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde::Deserialize;
 use sqlx::SqlitePool;
@@ -47,10 +47,21 @@ pub async fn lookup_by_type(
     }
 
     let result = match entity_type.to_lowercase().as_str() {
-        "tags" => db::lookup_tags_by_name(&state.pool, &name).await.map(LookupResponse::Tags),
-        "studios" => db::lookup_studios_by_name(&state.pool, &name).await.map(LookupResponse::Studios),
-        "performers" => db::lookup_performers_by_name(&state.pool, &name).await.map(LookupResponse::Performers),
-        _ => return error_response(StatusCode::BAD_REQUEST, "Invalid entity type. Use: tags, studios, performers"),
+        "tags" => db::lookup_tags_by_name(&state.pool, &name)
+            .await
+            .map(LookupResponse::Tags),
+        "studios" => db::lookup_studios_by_name(&state.pool, &name)
+            .await
+            .map(LookupResponse::Studios),
+        "performers" => db::lookup_performers_by_name(&state.pool, &name)
+            .await
+            .map(LookupResponse::Performers),
+        _ => {
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "Invalid entity type. Use: tags, studios, performers",
+            );
+        }
     };
 
     match result {
@@ -80,7 +91,12 @@ pub async fn lookup_by_id(
         "performers" => lookup::performer_by_id(&state.pool, &state.stash, &id, skip_cache)
             .await
             .map(|p| LookupResponse::Performers(vec![p])),
-        _ => return error_response(StatusCode::BAD_REQUEST, "Invalid entity type. Use: tags, studios, performers"),
+        _ => {
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "Invalid entity type. Use: tags, studios, performers",
+            );
+        }
     };
 
     match result {
@@ -88,7 +104,9 @@ pub async fn lookup_by_id(
         Err(e) => {
             let (status, msg) = match &e {
                 StashError::NotFound(s) => (StatusCode::NOT_FOUND, s.clone()),
-                StashError::GraphQL(s) if s.to_lowercase().contains("not found") => (StatusCode::NOT_FOUND, s.clone()),
+                StashError::GraphQL(s) if s.to_lowercase().contains("not found") => {
+                    (StatusCode::NOT_FOUND, s.clone())
+                }
                 _ => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
             };
             error_response(status, &msg)

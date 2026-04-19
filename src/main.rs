@@ -19,7 +19,8 @@ async fn shutdown_signal() {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:data/lookup.db?mode=rwc".to_string());
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "sqlite:data/lookup.db?mode=rwc".to_string());
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
         .connect(&database_url)
@@ -27,13 +28,20 @@ async fn main() -> anyhow::Result<()> {
 
     sqlx::migrate!("./migrations").run(&pool).await?;
 
-    let stash_url = std::env::var("STASH_URL").unwrap_or_else(|_| "https://stashdb.org/graphql".to_string());
+    let stash_url =
+        std::env::var("STASH_URL").unwrap_or_else(|_| "https://stashdb.org/graphql".to_string());
     let stash = stash::StashClient::new(&stash_url);
 
     let app = Router::new()
         .route("/health", axum::routing::get(routes::health))
-        .route("/api/lookup/{type}/{name}", axum::routing::get(routes::lookup_by_type))
-        .route("/api/id/{type}/{id}", axum::routing::get(routes::lookup_by_id))
+        .route(
+            "/api/lookup/{type}/{name}",
+            axum::routing::get(routes::lookup_by_type),
+        )
+        .route(
+            "/api/id/{type}/{id}",
+            axum::routing::get(routes::lookup_by_id),
+        )
         .with_state(AppState { pool, stash })
         .layer(CorsLayer::new().allow_origin(Any));
 

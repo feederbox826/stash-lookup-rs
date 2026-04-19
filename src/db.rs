@@ -29,7 +29,10 @@ fn normalize_search(s: &str) -> Option<String> {
 }
 
 // performers
-async fn performer_uuids_by_name(pool: &SqlitePool, search_name: &str) -> Result<Vec<Uuid>, sqlx::Error> {
+async fn performer_uuids_by_name(
+    pool: &SqlitePool,
+    search_name: &str,
+) -> Result<Vec<Uuid>, sqlx::Error> {
     let Some(normalized) = normalize_search(search_name) else {
         return Ok(Vec::new());
     };
@@ -42,7 +45,10 @@ async fn performer_uuids_by_name(pool: &SqlitePool, search_name: &str) -> Result
     Ok(rows.into_iter().map(|(u,)| u).collect())
 }
 
-pub async fn lookup_performers_by_name(pool: &SqlitePool, search_name: &str) -> Result<Vec<PerformerResponse>, sqlx::Error> {
+pub async fn lookup_performers_by_name(
+    pool: &SqlitePool,
+    search_name: &str,
+) -> Result<Vec<PerformerResponse>, sqlx::Error> {
     let uuids = performer_uuids_by_name(pool, search_name).await?;
     if uuids.is_empty() {
         return Ok(Vec::new());
@@ -57,7 +63,8 @@ pub async fn lookup_performers_by_name(pool: &SqlitePool, search_name: &str) -> 
         query = query.bind(u);
     }
     let rows = query.fetch_all(pool).await?;
-    let mut by_uuid: std::collections::HashMap<Uuid, Vec<(String, i32)>> = std::collections::HashMap::new();
+    let mut by_uuid: std::collections::HashMap<Uuid, Vec<(String, i32)>> =
+        std::collections::HashMap::new();
     for (uuid, name, role) in rows {
         by_uuid.entry(uuid).or_default().push((name, role));
     }
@@ -65,7 +72,11 @@ pub async fn lookup_performers_by_name(pool: &SqlitePool, search_name: &str) -> 
     for uuid in uuids {
         if let Some(names) = by_uuid.remove(&uuid) {
             let (canonical, aliases) = split_names(names);
-            results.push(PerformerResponse { uuid, name: canonical, aliases });
+            results.push(PerformerResponse {
+                uuid,
+                name: canonical,
+                aliases,
+            });
         }
     }
     Ok(results)
@@ -103,7 +114,12 @@ pub async fn lookup_performer_by_id(
     }))
 }
 
-pub async fn add_performer(pool: &SqlitePool, uuid: &Uuid, name: &str, aliases: &[String]) -> Result<(), sqlx::Error> {
+pub async fn add_performer(
+    pool: &SqlitePool,
+    uuid: &Uuid,
+    name: &str,
+    aliases: &[String],
+) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         INSERT INTO performer_names (uuid, name, role)
@@ -116,7 +132,11 @@ pub async fn add_performer(pool: &SqlitePool, uuid: &Uuid, name: &str, aliases: 
     .execute(pool)
     .await?;
     if !aliases.is_empty() {
-        let values = aliases.iter().map(|_| "(?, ?, 1)").collect::<Vec<_>>().join(", ");
+        let values = aliases
+            .iter()
+            .map(|_| "(?, ?, 1)")
+            .collect::<Vec<_>>()
+            .join(", ");
         let sql = format!(
             "INSERT INTO performer_names (uuid, name, role) VALUES {} ON CONFLICT(uuid, name) DO UPDATE SET role=1",
             values
@@ -131,7 +151,10 @@ pub async fn add_performer(pool: &SqlitePool, uuid: &Uuid, name: &str, aliases: 
 }
 
 // studios
-async fn studio_uuids_by_name(pool: &SqlitePool, search_name: &str) -> Result<Vec<Uuid>, sqlx::Error> {
+async fn studio_uuids_by_name(
+    pool: &SqlitePool,
+    search_name: &str,
+) -> Result<Vec<Uuid>, sqlx::Error> {
     let Some(normalized) = normalize_search(search_name) else {
         return Ok(Vec::new());
     };
@@ -144,7 +167,10 @@ async fn studio_uuids_by_name(pool: &SqlitePool, search_name: &str) -> Result<Ve
     Ok(rows.into_iter().map(|(u,)| u).collect())
 }
 
-pub async fn lookup_studios_by_name(pool: &SqlitePool, search_name: &str) -> Result<Vec<StudioResponse>, sqlx::Error> {
+pub async fn lookup_studios_by_name(
+    pool: &SqlitePool,
+    search_name: &str,
+) -> Result<Vec<StudioResponse>, sqlx::Error> {
     let uuids = studio_uuids_by_name(pool, search_name).await?;
     if uuids.is_empty() {
         return Ok(Vec::new());
@@ -159,17 +185,15 @@ pub async fn lookup_studios_by_name(pool: &SqlitePool, search_name: &str) -> Res
         names_query = names_query.bind(u);
     }
     let name_rows = names_query.fetch_all(pool).await?;
-    let parents_sql = format!(
-        "SELECT uuid, parent FROM studios WHERE uuid IN ({})",
-        ph
-    );
+    let parents_sql = format!("SELECT uuid, parent FROM studios WHERE uuid IN ({})", ph);
     let mut parents_query = sqlx::query_as::<_, (Uuid, Option<Uuid>)>(&parents_sql);
     for u in &uuids {
         parents_query = parents_query.bind(u);
     }
     let parent_rows: std::collections::HashMap<Uuid, Option<Uuid>> =
         parents_query.fetch_all(pool).await?.into_iter().collect();
-    let mut by_uuid: std::collections::HashMap<Uuid, Vec<(String, i32)>> = std::collections::HashMap::new();
+    let mut by_uuid: std::collections::HashMap<Uuid, Vec<(String, i32)>> =
+        std::collections::HashMap::new();
     for (uuid, name, role) in name_rows {
         by_uuid.entry(uuid).or_default().push((name, role));
     }
@@ -178,7 +202,12 @@ pub async fn lookup_studios_by_name(pool: &SqlitePool, search_name: &str) -> Res
         if let Some(names) = by_uuid.remove(&uuid) {
             let (canonical, aliases) = split_names(names);
             let parent = parent_rows.get(&uuid).copied().flatten();
-            results.push(StudioResponse { uuid, parent, name: canonical, aliases });
+            results.push(StudioResponse {
+                uuid,
+                parent,
+                name: canonical,
+                aliases,
+            });
         }
     }
     Ok(results)
@@ -208,12 +237,11 @@ pub async fn lookup_studio_by_id(
         return Ok(None);
     }
 
-    let (parent,) = sqlx::query_as::<_, (Option<Uuid>,)>(
-        r#"SELECT parent FROM studios WHERE uuid = ?"#,
-    )
-    .bind(uuid)
-    .fetch_one(pool)
-    .await?;
+    let (parent,) =
+        sqlx::query_as::<_, (Option<Uuid>,)>(r#"SELECT parent FROM studios WHERE uuid = ?"#)
+            .bind(uuid)
+            .fetch_one(pool)
+            .await?;
 
     let (canonical, aliases) = split_names(names);
     Ok(Some(StudioResponse {
@@ -224,7 +252,13 @@ pub async fn lookup_studio_by_id(
     }))
 }
 
-pub async fn add_studio(pool: &SqlitePool, uuid: &Uuid, name: &str, aliases: &[String], parent: Option<Uuid>) -> Result<(), sqlx::Error> {
+pub async fn add_studio(
+    pool: &SqlitePool,
+    uuid: &Uuid,
+    name: &str,
+    aliases: &[String],
+    parent: Option<Uuid>,
+) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         INSERT INTO studios (uuid, parent)
@@ -250,7 +284,11 @@ pub async fn add_studio(pool: &SqlitePool, uuid: &Uuid, name: &str, aliases: &[S
     .await?;
 
     if !aliases.is_empty() {
-        let values = aliases.iter().map(|_| "(?, ?, 1)").collect::<Vec<_>>().join(", ");
+        let values = aliases
+            .iter()
+            .map(|_| "(?, ?, 1)")
+            .collect::<Vec<_>>()
+            .join(", ");
         let sql = format!(
             "INSERT INTO studio_names (studio_uuid, name, role) VALUES {} ON CONFLICT(studio_uuid, name) DO UPDATE SET role=1",
             values
@@ -278,7 +316,10 @@ async fn tag_uuids_by_name(pool: &SqlitePool, search_name: &str) -> Result<Vec<U
     Ok(rows.into_iter().map(|(u,)| u).collect())
 }
 
-pub async fn lookup_tags_by_name(pool: &SqlitePool, search_name: &str) -> Result<Vec<TagResponse>, sqlx::Error> {
+pub async fn lookup_tags_by_name(
+    pool: &SqlitePool,
+    search_name: &str,
+) -> Result<Vec<TagResponse>, sqlx::Error> {
     let uuids = tag_uuids_by_name(pool, search_name).await?;
     if uuids.is_empty() {
         return Ok(Vec::new());
@@ -293,17 +334,18 @@ pub async fn lookup_tags_by_name(pool: &SqlitePool, search_name: &str) -> Result
         names_query = names_query.bind(u);
     }
     let name_rows = names_query.fetch_all(pool).await?;
-    let categories_sql = format!(
-        "SELECT uuid, category FROM tags WHERE uuid IN ({})",
-        ph
-    );
+    let categories_sql = format!("SELECT uuid, category FROM tags WHERE uuid IN ({})", ph);
     let mut categories_query = sqlx::query_as::<_, (Uuid, Option<Uuid>)>(&categories_sql);
     for u in &uuids {
         categories_query = categories_query.bind(u);
     }
-    let category_rows: std::collections::HashMap<Uuid, Option<Uuid>> =
-        categories_query.fetch_all(pool).await?.into_iter().collect();
-    let mut by_uuid: std::collections::HashMap<Uuid, Vec<(String, i32)>> = std::collections::HashMap::new();
+    let category_rows: std::collections::HashMap<Uuid, Option<Uuid>> = categories_query
+        .fetch_all(pool)
+        .await?
+        .into_iter()
+        .collect();
+    let mut by_uuid: std::collections::HashMap<Uuid, Vec<(String, i32)>> =
+        std::collections::HashMap::new();
     for (uuid, name, role) in name_rows {
         by_uuid.entry(uuid).or_default().push((name, role));
     }
@@ -312,7 +354,12 @@ pub async fn lookup_tags_by_name(pool: &SqlitePool, search_name: &str) -> Result
         if let Some(names) = by_uuid.remove(&uuid) {
             let (canonical, aliases) = split_names(names);
             let category = category_rows.get(&uuid).copied().flatten();
-            results.push(TagResponse { uuid, category, name: canonical, aliases });
+            results.push(TagResponse {
+                uuid,
+                category,
+                name: canonical,
+                aliases,
+            });
         }
     }
     Ok(results)
@@ -342,12 +389,11 @@ pub async fn lookup_tag_by_id(
         return Ok(None);
     }
 
-    let (category,) = sqlx::query_as::<_, (Option<Uuid>,)>(
-        r#"SELECT category FROM tags WHERE uuid = ?"#,
-    )
-    .bind(uuid)
-    .fetch_one(pool)
-    .await?;
+    let (category,) =
+        sqlx::query_as::<_, (Option<Uuid>,)>(r#"SELECT category FROM tags WHERE uuid = ?"#)
+            .bind(uuid)
+            .fetch_one(pool)
+            .await?;
 
     let (canonical, aliases) = split_names(names);
     Ok(Some(TagResponse {
@@ -358,7 +404,13 @@ pub async fn lookup_tag_by_id(
     }))
 }
 
-pub async fn add_tag(pool: &SqlitePool, uuid: &Uuid, name: &str, aliases: &[String], category: Option<Uuid>) -> Result<(), sqlx::Error> {
+pub async fn add_tag(
+    pool: &SqlitePool,
+    uuid: &Uuid,
+    name: &str,
+    aliases: &[String],
+    category: Option<Uuid>,
+) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         INSERT INTO tags (uuid, category)
@@ -384,7 +436,11 @@ pub async fn add_tag(pool: &SqlitePool, uuid: &Uuid, name: &str, aliases: &[Stri
     .await?;
 
     if !aliases.is_empty() {
-        let values = aliases.iter().map(|_| "(?, ?, 1)").collect::<Vec<_>>().join(", ");
+        let values = aliases
+            .iter()
+            .map(|_| "(?, ?, 1)")
+            .collect::<Vec<_>>()
+            .join(", ");
         let sql = format!(
             "INSERT INTO tag_names (tag_uuid, name, role) VALUES {} ON CONFLICT(tag_uuid, name) DO UPDATE SET role=1",
             values

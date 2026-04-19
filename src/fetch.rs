@@ -55,10 +55,7 @@ struct FindStudioData {
     find_studio: Option<StashStudio>,
 }
 
-pub async fn get_studio(
-    client: &StashClient,
-    id: &str,
-) -> Result<StudioResponse, StashError> {
+pub async fn get_studio(client: &StashClient, id: &str) -> Result<StudioResponse, StashError> {
     let query = r#"query ($id: ID!) { findStudio(id: $id) { id name aliases parent { id } } }"#;
     let vars = serde_json::json!({ "id": id });
     let data: FindStudioData = client.query(query, Some(vars)).await?;
@@ -95,10 +92,7 @@ struct FindTagData {
     find_tag: Option<StashTag>,
 }
 
-pub async fn get_tag(
-    client: &StashClient,
-    id: &str,
-) -> Result<TagResponse, StashError> {
+pub async fn get_tag(client: &StashClient, id: &str) -> Result<TagResponse, StashError> {
     let query = r#"query ($id: ID!) { findTag(id: $id) { id name aliases category { id }} }"#;
     let vars = serde_json::json!({ "id": id });
     let data: FindTagData = client.query(query, Some(vars)).await?;
@@ -111,6 +105,6 @@ pub async fn get_tag(
         uuid,
         name: t.name,
         aliases: t.aliases,
-        category
+        category,
     })
 }
